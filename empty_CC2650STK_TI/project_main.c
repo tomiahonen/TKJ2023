@@ -145,6 +145,8 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
 
 
+
+
             programState = WAITING;
 
         }
@@ -227,6 +229,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
     //       Before calling the setup function, insertt 100ms delay with Task_sleep
         Task_sleep(1000 / Clock_tickPeriod);
         opt3001_setup(&i2c);
+        I2C_close(i2c);
 
 
 
@@ -280,6 +283,10 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
     }
 }
 
+
+
+
+
 Int main(void) {
 
     // Task variables
@@ -326,6 +333,8 @@ Int main(void) {
        if (PIN_registerIntCb(buttonHandle, &buttonFxn) != 0) {
            System_abort("Error registering button callback function");
           }
+
+
 
     /* Task */
     Task_Params_init(&sensorTaskParams);
