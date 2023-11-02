@@ -16,19 +16,57 @@
 #include <ti/drivers/power/PowerCC26XX.h>
 #include <ti/drivers/UART.h>
 
+#include <ti/drivers/i2c/I2CCC26XX.h>
 /* Board Header files */
 #include "Board.h"
 #include "sensors/opt3001.h"
+#include "sensors/mpu9250.h"
 
 /* Task */
 #define STACKSIZE 2048
 Char sensorTaskStack[STACKSIZE];
 Char uartTaskStack[STACKSIZE];
 
+//----------------------------------------MPU9250
+// MPU9250 power pin global variables
+static PIN_Handle hMpuPin;
+static PIN_State  MpuPinState;
+
+// MPU9250 power pin
+static PIN_Config MpuPinConfig[] = {
+    Board_MPU_POWER  | PIN_GPIO_OUTPUT_EN | PIN_GPIO_HIGH | PIN_PUSHPULL | PIN_DRVSTR_MAX,
+    PIN_TERMINATE
+};
+
+// MPU9250 uses its own I2C interface
+static const I2CCC26XX_I2CPinCfg i2cMPUCfg = {
+    .pinSDA = Board_I2C0_SDA1,
+    .pinSCL = Board_I2C0_SCL1
+};
+
+//----------------------------------------
+
+
+
+
 // JTKJ: Teht�v� 3. Tilakoneen esittely
 // JTKJ: Exercise 3. Definition of the state machine
 enum state { WAITING=1, DATA_READY };
 enum state programState = WAITING;
+
+//Global variables
+#define ARRAYSIZE 10
+
+float ax[ARRAYSIZE] = {};
+float ay[ARRAYSIZE] = {};
+float az[ARRAYSIZE] = {};
+float gx[ARRAYSIZE] = {};
+float gy[ARRAYSIZE] = {};
+float gz[ARRAYSIZE] = {};
+
+int i = 0;
+int counter = 0;
+
 
 // JTKJ: Teht�v� 3. Valoisuuden globaali muuttuja
 // JTKJ: Exercise 3. Global variable for ambient light
@@ -127,9 +165,44 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 }
 
 Void sensorTaskFxn(UArg arg0, UArg arg1) {
+    //float ax, ay, az, gx, gy, gz;
 
     I2C_Handle      i2c;
     I2C_Params      i2cParams;
+
+    I2C_Handle i2cMPU; // Own i2c-interface for MPU9250 sensor
+    I2C_Params i2cMPUParams;
+
+    I2C_Params_init(&i2cMPUParams);
+       i2cMPUParams.bitRate = I2C_400kHz;
+       // Note the different configuration below
+       i2cMPUParams.custom = (uintptr_t)&i2cMPUCfg;
+
+       // MPU power on
+       PIN_setOutputValue(hMpuPin,Board_MPU_POWER, Board_MPU_POWER_ON);
+
+       // Wait 100ms for the MPU sensor to power up
+           Task_sleep(100000 / Clock_tickPeriod);
+       System_printf("MPU9250: Power ON\n");
+       System_flush();
+
+       // MPU open i2c
+       i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
+       if (i2cMPU == NULL) {
+           System_abort("Error Initializing I2CMPU\n");
+       }
+
+       // MPU setup and calibration
+       System_printf("MPU9250: Setup and calibration...\n");
+       System_flush();
+
+       mpu9250_setup(&i2cMPU);
+
+       System_printf("MPU9250: Setup and calibration OK\n");
+       System_flush();
+
+       I2C_close(i2cMPU);
+
 
     // JTKJ: Teht�v� 2. Avaa i2c-v�yl� taskin k�ytt��n
     // JTKJ: Exercise 2. Open the i2c bus
@@ -138,7 +211,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
       // Muuttuja i2c-viestirakenteelle
     //I2C_Transaction i2cMessage;
 
-       // Alustetaan i2c-väylä
+    // Alustetaan i2c-väylä
     I2C_Params_init(&i2cParams);
     i2cParams.bitRate = I2C_400kHz;
 
@@ -156,30 +229,54 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         opt3001_setup(&i2c);
 
 
+
     while (1) {
 
         // JTKJ: Teht�v� 2. Lue sensorilta dataa ja tulosta se Debug-ikkunaan merkkijonona
         // JTKJ: Exercise 2. Read sensor data and print it to the Debug window as string
+        /*
         double lux  = opt3001_get_data(&i2c);
         char debug_msg[56];
         sprintf(debug_msg,"Luksia %f\n", lux);
 
         System_printf(debug_msg);
         System_flush();
+        */
+
+        //------------------------------------MPU9250
+        i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
+        mpu9250_get_data(&i2cMPU, &ax[i], &ay[i], &az[i], &gx[i], &gy[i], &gz[i]);
+
+        //testing
+        char debug_msg_mpu[56];
+        sprintf(debug_msg_mpu, "sensorTask: %f suunta\n", ax[i]);
+        System_printf(debug_msg_mpu);
+        System_flush();
+
+        I2C_close(i2cMPU);
 
 
         // JTKJ: Teht�v� 3. Tallenna mittausarvo globaaliin muuttujaan
         //       Muista tilamuutos
         // JTKJ: Exercise 3. Save the sensor value into the global variable
         //       Remember to modify state
-        ambientLight = lux;
-        programState = DATA_READY;
+        //ambientLight = lux;
+
+        if (i == 5){
+            programState = DATA_READY;
+            i = 0;
+            counter = 0;
+            Task_sleep(5000000 / Clock_tickPeriod);
+        }
+
+        i++;
+        //programState = DATA_READY;
         // Just for sanity check for exercise, you can comment this out
         System_printf("sensorTask\n");
         System_flush();
 
         // Once per second, you can modify this
-        Task_sleep(1000000 / Clock_tickPeriod);
+        Task_sleep(1000 / Clock_tickPeriod);
     }
 }
 
@@ -201,6 +298,13 @@ Int main(void) {
     // JTKJ: Teht�v� 4. Ota UART k�ytt��n ohjelmassa
     // JTKJ: Exercise 4. Initialize UART
     Board_initUART();
+
+    //--------------------------------------- MPU9250
+    // Open MPU power pin
+    hMpuPin = PIN_open(&MpuPinState, MpuPinConfig);
+    if (hMpuPin == NULL) {
+        System_abort("Pin open failed!");
+    }
 
     // JTKJ: Teht�v� 1. Ota painonappi ja ledi ohjelman k�ytt��n
     //       Muista rekister�id� keskeytyksen k�sittelij� painonapille
@@ -241,6 +345,8 @@ Int main(void) {
     if (uartTaskHandle == NULL) {
         System_abort("Task create failed!");
     }
+
+
 
     /* Sanity check */
     System_printf("Hello world!\n");

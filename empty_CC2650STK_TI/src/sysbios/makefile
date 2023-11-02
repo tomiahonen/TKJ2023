@@ -16,7 +16,7 @@ BIOS_INC  = -I"C:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/bios_6_46_01_37/pa
 
 TARGET_INC = -I"C:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/bios_6_46_01_37/packages/"
 
-INCS = $(BIOS_INC) $(TARGET_INC)  --include_path="C:/Users/OMISTAJA/workspace_v10/TKJ2023/tkj23/workspace_v10/empty_CC2650STK_TI" --include_path="C:/Users/OMISTAJA/workspace_v10/TKJ2023/tkj23/workspace_v10/empty_CC2650STK_TI" --include_path="C:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/cc26xxware_2_24_03_17272" --include_path="C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/include"  -IC:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/bios_6_46_01_37/packages/ 
+INCS = $(BIOS_INC) $(TARGET_INC)  --include_path="C:/Users/OMISTAJA/workspace_v10/TKJ2023/empty_CC2650STK_TI" --include_path="C:/Users/OMISTAJA/workspace_v10/TKJ2023/empty_CC2650STK_TI" --include_path="C:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/cc26xxware_2_24_03_17272" --include_path="C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/include"  -IC:/ti/tirtos_cc13xx_cc26xx_2_21_00_06/products/bios_6_46_01_37/packages/ 
 
 CC = C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/bin/armcl -c $(CCOPTS) -I C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/include
 ASM = C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/bin/armcl -c $(CCOPTS) -I C:/ti/ccs1000/ccs/tools/compiler/ti-cgt-arm_20.2.0.LTS/include
