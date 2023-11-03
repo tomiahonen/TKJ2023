@@ -108,6 +108,7 @@ void buttonFxn(PIN_Handle handle, PIN_Id pinId) {
     uint_t pinValue = PIN_getOutputValue( Board_LED0 );
     pinValue = !pinValue;
     PIN_setOutputValue( ledHandle, Board_LED0, pinValue );
+    programState = DATA_READY;
 }
 
 /* Task Functions */
@@ -167,7 +168,12 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             System_printf(debug_msg);
             System_flush();
 
+            char echo_msg3[30];
+            // sprintf(echo_msg3, "id:3008,PET:1\0");
+                    //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
+            sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
+            UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
 
 
@@ -189,12 +195,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         UART_write(uart, echo_msg2, strlen(echo_msg2));
         */
 
-        char echo_msg3[30];
-       // sprintf(echo_msg3, "id:3008,PET:1\0");
-        //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
-        sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
-        UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
 
 
@@ -203,7 +204,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         //System_flush();
 
         // Once per second, you can modify this
-        Task_sleep(10000000 / Clock_tickPeriod);
+        Task_sleep(100000 / Clock_tickPeriod);
     }
 }
 
@@ -307,7 +308,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         //ambientLight = lux;
 
         if (i == 5){
-            programState = DATA_READY;
+            programState = WAITING;
             i = 0;
             counter = 0;
             Task_sleep(5000000 / Clock_tickPeriod);
