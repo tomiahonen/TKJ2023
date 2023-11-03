@@ -44,6 +44,17 @@ static const I2CCC26XX_I2CPinCfg i2cMPUCfg = {
     .pinSCL = Board_I2C0_SCL1
 };
 
+//kasittelijafunktio
+static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
+    // Nyt meilla on siis haluttu maara merkkeja kaytettavissa
+       // rxBuf-taulukossa, pituus len, jota voimme kasitella halutusti
+       // Tassa ne annetaan argumentiksi toiselle funktiolle (esimerkin vuoksi)
+       //(rxBuf,len);
+
+       // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
+       UART_read(handle, rxBuf, 1);
+}
+
 //----------------------------------------
 
 
@@ -108,6 +119,8 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        char echo_msg[30];
 
        // UART-kirjaston asetukset
+
+       /*
        UART_Handle uart;
        UART_Params uartParams;
 
@@ -121,11 +134,25 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        uartParams.dataLength = UART_LEN_8; // 8
        uartParams.parityType = UART_PAR_NONE; // n
        uartParams.stopBits = UART_STOP_ONE; // 1
+    */
 
-       uart = UART_open(Board_UART0, &uartParams);
+       // TI dokumentaatiosta:
+       UART_Handle uart;
+       UART_Params params;
+
+       UART_Params_init(&params);
+       params.baudRate      = 9600;
+       params.readMode      = UART_MODE_CALLBACK; // Keskeytyspohjainen vastaanotto
+       params.readCallback  = &uartFxn; // Kasittelijafunktio
+       params.readDataMode  = UART_DATA_TEXT;
+       params.writeDataMode = UART_DATA_TEXT;
+
+       // uart käyttoon ohjelmassa
+       uart = UART_open(Board_UART0, &params);
           if (uart == NULL) {
              System_abort("Error opening the UART");
           }
+
 
 
     while (1) {
@@ -147,14 +174,28 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
 
 
+
+
             programState = WAITING;
 
         }
         // JTKJ: Tehtï¿½vï¿½ 4. Lï¿½hetï¿½ sama merkkijono UARTilla
         // JTKJ: Exercise 4. Send the same sensor data string with UART
-        char echo_msg[30];
+        /*char echo_msg[30];
         sprintf(echo_msg, "uartTask: %f luksia\n\r", ambientLight);
         UART_write(uart, echo_msg, strlen(echo_msg));
+        char echo_msg2[30];
+        sprintf(echo_msg2, "id:3008,PET:1/0");
+        UART_write(uart, echo_msg2, strlen(echo_msg2));
+        */
+
+        char echo_msg3[30];
+       // sprintf(echo_msg3, "id:3008,PET:1\0");
+        //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+        sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
+        UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
 
 
         // Just for sanity check for exercise, you can comment this out
@@ -162,7 +203,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         //System_flush();
 
         // Once per second, you can modify this
-        Task_sleep(1000000 / Clock_tickPeriod);
+        Task_sleep(10000000 / Clock_tickPeriod);
     }
 }
 
