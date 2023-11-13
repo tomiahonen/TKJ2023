@@ -78,6 +78,8 @@ float gz[ARRAYSIZE] = {};
 int i = 0;
 int counter = 0;
 
+uint8_t uartBuffer[30]; //vastaanottopuskuri
+
 
 // JTKJ: Teht�v� 3. Valoisuuden globaali muuttuja
 // JTKJ: Exercise 3. Global variable for ambient light
@@ -153,6 +155,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
           if (uart == NULL) {
              System_abort("Error opening the UART");
           }
+       UART_read(uart, uartBuffer, 1);
 
 
 
@@ -170,10 +173,28 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
             char echo_msg3[30];
             // sprintf(echo_msg3, "id:3008,PET:1\0");
-                    //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
-            sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
-            UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+            //sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
+            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+            //sprintf(echo_msg3,"id:3008,ping");
+            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+
+            char debug_msg_mpu[56];
+            sprintf(debug_msg_mpu, "Tulosta! %f", *ax);
+            System_printf(debug_msg_mpu);
+            System_flush();
+
+            if (*ax > 0.2 || *ax < -0.2) {
+                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
+                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+                char debug_msg_mpu[56];
+                sprintf(debug_msg_mpu, "Tulosta!");
+                System_printf(debug_msg_mpu);
+                System_flush();
+            }
 
 
 
@@ -204,12 +225,12 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         //System_flush();
 
         // Once per second, you can modify this
-        Task_sleep(100000 / Clock_tickPeriod);
+        Task_sleep(1000000 / Clock_tickPeriod);
     }
 }
 
 Void sensorTaskFxn(UArg arg0, UArg arg1) {
-    //float ax, ay, az, gx, gy, gz;
+    // float ax, ay, az, gx, gy, gz;
 
     I2C_Handle      i2c;
     I2C_Params      i2cParams;
@@ -307,14 +328,15 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         //       Remember to modify state
         //ambientLight = lux;
 
-        if (i == 5){
-            programState = WAITING;
+        if (counter == 5){
+            programState = DATA_READY;
             i = 0;
             counter = 0;
             Task_sleep(5000000 / Clock_tickPeriod);
         }
 
         i++;
+        counter++;
         //programState = DATA_READY;
         // Just for sanity check for exercise, you can comment this out
         System_printf("sensorTask\n");
