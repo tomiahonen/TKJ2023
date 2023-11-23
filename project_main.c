@@ -22,9 +22,6 @@
 #include "Board.h"
 #include "sensors/opt3001.h"
 #include "sensors/mpu9250.h"
-#include "sensors/buzzer.h"
-//#include "lib/Pitches/pitches.h"
-
 
 /* Task */
 #define STACKSIZE 2048
@@ -48,14 +45,6 @@ static const I2CCC26XX_I2CPinCfg i2cMPUCfg = {
     .pinSCL = Board_I2C0_SCL1
 };
 
-//Buzzer PIN config
-static PIN_Handle hBuzzer;
-static PIN_State sBuzzer;
-PIN_Config cBuzzer[] = {
-  Board_BUZZER | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-  PIN_TERMINATE
-};
-
 //kasittelijafunktio
 static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
     // Nyt meilla on siis haluttu maara merkkeja kaytettavissa
@@ -75,7 +64,7 @@ int threshold(float *array, uint8_t array_size, float thresholdValue);
 
 
 
-// JTKJ: Tehtava 3. Tilakoneen esittely
+// JTKJ: Tehtï¿½vï¿½ 3. Tilakoneen esittely
 // JTKJ: Exercise 3. Definition of the state machine
 enum state { WAITING=1, DATA_READY };
 enum state programState = WAITING;
@@ -92,17 +81,15 @@ float gz[ARRAYSIZE] = {};
 
 int i = 0;
 int counter = 0;
-int button_pressed = 0;
+
 uint8_t uartBuffer[30]; //vastaanottopuskuri
 
 
-// JTKJ: Tehtava 3. Valoisuuden globaali muuttuja
+// JTKJ: Tehtï¿½vï¿½ 3. Valoisuuden globaali muuttuja
 // JTKJ: Exercise 3. Global variable for ambient light
-double lux = -1000.0;
+double ambientLight = -1000.0;
 
-double temperature = 0;
-
-// JTKJ: Tehtava 1. Lisaa painonappien RTOS-muuttujat ja alustus
+// JTKJ: Tehtï¿½vï¿½ 1. Lisï¿½ï¿½ painonappien RTOS-muuttujat ja alustus
 // JTKJ: Exercise 1. Add pins RTOS-variables and configuration here
 static PIN_Handle buttonHandle;
 static PIN_State buttonState;
@@ -111,15 +98,13 @@ static PIN_State ledState;
 
 PIN_Config buttonConfig[] = {
    Board_BUTTON0  | PIN_INPUT_EN | PIN_PULLUP | PIN_IRQ_NEGEDGE,
-   PIN_TERMINATE // Asetustaulukko lopetetaan aina tällä vakiolla
+   PIN_TERMINATE // Asetustaulukko lopetetaan aina tÃ¤llÃ¤ vakiolla
 };
 
 PIN_Config ledConfig[] = {
    Board_LED0 | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
-   PIN_TERMINATE // Asetustaulukko lopetetaan aina tällä vakiolla
+   PIN_TERMINATE // Asetustaulukko lopetetaan aina tÃ¤llÃ¤ vakiolla
 };
-
-
 
 float movavg(float *array, uint8_t array_size, uint8_t window_size){
 
@@ -172,20 +157,19 @@ int threshold(float *array, uint8_t array_size, float thresholdValue){
 }
 void buttonFxn(PIN_Handle handle, PIN_Id pinId) {
 
-    // JTKJ: Tehtava 1. Vilkuta jompaa kumpaa ledia
+    // JTKJ: Tehtï¿½vï¿½ 1. Vilkuta jompaa kumpaa lediï¿½
     // JTKJ: Exercise 1. Blink either led of the device
     // Vaihdetaan led-pinnin tilaa negaatiolla
     uint_t pinValue = PIN_getOutputValue( Board_LED0 );
     pinValue = !pinValue;
     PIN_setOutputValue( ledHandle, Board_LED0, pinValue );
-    button_pressed = 1;
     programState = DATA_READY;
 }
 
 /* Task Functions */
 Void uartTaskFxn(UArg arg0, UArg arg1) {
 
-    // JTKJ: tehtava 4. Lisaa UARTin alustus: 9600,8n1
+    // JTKJ: Tehtï¿½vï¿½ 4. Lisï¿½ï¿½ UARTin alustus: 9600,8n1
     // JTKJ: Exercise 4. Setup here UART connection as 9600,8n1
        char input;
        char echo_msg[30];
@@ -219,68 +203,30 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        params.readDataMode  = UART_DATA_TEXT;
        params.writeDataMode = UART_DATA_TEXT;
 
-       // uart kayttoon ohjelmassa
+       // uart käyttoon ohjelmassa
        uart = UART_open(Board_UART0, &params);
           if (uart == NULL) {
              System_abort("Error opening the UART");
           }
-       //UART_read(uart, uartBuffer, 1);
+       UART_read(uart, uartBuffer, 1);
 
-       System_flush();
-
-       //float thresholdax = 1.3;
+       float thresholdax = 1.3;
 
 
-    int eat_counter = 0;
+
     while (1) {
 
-        // JTKJ: Tehtava 3. Kun tila on oikea, tulosta sensoridata merkkijonossa debug-ikkunaan
+        // JTKJ: Tehtï¿½vï¿½ 3. Kun tila on oikea, tulosta sensoridata merkkijonossa debug-ikkunaan
         //       Muista tilamuutos
         // JTKJ: Exercise 3. Print out sensor data as string to debug window if the state is correct
         //       Remember to modify state
         if (programState == DATA_READY) {
-            char debug_msg[100];
+            char debug_msg[56];
             //sprintf(debug_msg,"Luksia %f", ambientLight);
             //System_printf(debug_msg);
             //System_flush();
 
             char echo_msg3[30];
-
-            sprintf(echo_msg3,"id:3008, MSG1: %f", lux);
-            UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-            float movavgx = movavg(ax,ARRAYSIZE,3);
-            float movavgy = movavg(ay,ARRAYSIZE,3);
-            float movavgz = movavg(az,ARRAYSIZE,3);
-
-            float movavggx = movavg(gx,ARRAYSIZE,3);
-            float movavggy = movavg(gy,ARRAYSIZE,3);
-            float movavggz = movavg(gz,ARRAYSIZE,3);
-
-            sprintf(debug_msg, "ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", movavgx, movavgy, movavgz, movavggx, movavggy, movavggz);
-            System_printf(debug_msg);
-            System_flush();
-
-            // ax = -0.298, ay = 1.087, az = -0.968
-
-            if (movavgy > 1.0f && movavgx < 0.25f && movavgz < 0.9) {
-                eat_counter++;
-            }
-
-            if(eat_counter > 4){
-                sprintf(echo_msg3,"id:3008,EAT:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-                eat_counter=0;
-            }
-
-            if (button_pressed) {
-                sprintf(echo_msg3,"id:3008,PET:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-                button_pressed = 0;
-            }
-
-
-
             // sprintf(echo_msg3, "id:3008,PET:1\0");
             //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
@@ -297,8 +243,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             */
 
             //if (*ax > 0.2 || *ax < -0.2) {
-
-            /*
             float movavgx = movavg(ax, 10, 4);
             if(movavgx > 0.3F || movavgx < -0.3F){
                 sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
@@ -310,9 +254,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
                 System_flush();
             }
 
-            */
-
-            /*
             float absavgx = absavg(ax, 10);
             if(absavgx > 0.3F){
                 sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
@@ -322,86 +263,18 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
                 sprintf(debug_msg_mpu, "Tulosta! absavg %f \n", absavgx);
                 System_printf(debug_msg_mpu);
                 System_flush();
-
             }
-            */
 
-
-           /*
-
-           // If threshold returns 1 at value 1.5 ----> EXERCISE
-           if(threshold(az, ARRAYSIZE, 1.5f)) {
+            if(threshold(gz, 10, 150.0F)){
 
                 sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
                 UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
                 char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "-Acc tulostus- \n");
+                sprintf(debug_msg_mpu, "Tulosta! Thresholdcrossed! \n", movavgx);
                 System_printf(debug_msg_mpu);
                 System_flush();
-
-                buzzerOpen(hBuzzer);
-                buzzerSetFrequency(5000);
-                Task_sleep(50000 / Clock_tickPeriod);
-                buzzerClose();
-
-                Task_sleep(950000 / Clock_tickPeriod);
             }
-            */
-
-            /* (threshold(gz, ARRAYSIZE, 200.0f)){
-                sprintf(echo_msg3,"id:3008,PET:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-                char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "-Gyro tulostus- \n");
-                System_printf(debug_msg_mpu);
-                System_flush();
-
-                buzzerOpen(hBuzzer);
-                buzzerSetFrequency(5000);
-                Task_sleep(50000 / Clock_tickPeriod);
-                buzzerClose();
-
-    }
-    */
-           //if moving average > 30 ----> PET
-
-           /*
-           if(movavggz > 50.0f && movavggx < 120.0f && movavggy < 120.0f) {
-
-               sprintf(echo_msg3,"id:3008,PET:1\0");
-               UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-               buzzerOpen(hBuzzer);
-               buzzerSetFrequency(5000);
-               Task_sleep(50000 / Clock_tickPeriod);
-               buzzerClose();
-               pet_counter = 0;
-
-               } */
-
-            //ax = -0.261, ay = 0.047, az = 2.090,
-           if(movavgz > 2.0f && movavgx < 0.5f && movavgy < 0.8f) {
-               sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
-               UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-               buzzerOpen(hBuzzer);
-               buzzerSetFrequency(5000);
-               Task_sleep(50000 / Clock_tickPeriod);
-               buzzerClose();
-           }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -413,7 +286,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             programState = WAITING;
 
         }
-        // JTKJ: Tehtava 4. Laheta sama merkkijono UARTilla
+        // JTKJ: Tehtï¿½vï¿½ 4. Lï¿½hetï¿½ sama merkkijono UARTilla
         // JTKJ: Exercise 4. Send the same sensor data string with UART
         /*char echo_msg[30];
         sprintf(echo_msg, "uartTask: %f luksia\n\r", ambientLight);
@@ -476,14 +349,14 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
        I2C_close(i2cMPU);
 
 
-    // JTKJ: Tehtava 2. Avaa i2c-vayla taskin kayttoon
+    // JTKJ: Tehtï¿½vï¿½ 2. Avaa i2c-vï¿½ylï¿½ taskin kï¿½yttï¿½ï¿½n
     // JTKJ: Exercise 2. Open the i2c bus
     // RTOS:n i2c-muuttujat ja alustus
 
       // Muuttuja i2c-viestirakenteelle
     //I2C_Transaction i2cMessage;
 
-    // Alustetaan i2c-väylä
+    // Alustetaan i2c-vÃ¤ylÃ¤
     I2C_Params_init(&i2cParams);
     i2cParams.bitRate = I2C_400kHz;
 
@@ -493,12 +366,11 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
           System_abort("Error Initializing I2C\n");
        }
 
-    // JTKJ: Tehtava 2. Alusta sensorin OPT3001 setup-funktiolla
+    // JTKJ: Tehtï¿½vï¿½ 2. Alusta sensorin OPT3001 setup-funktiolla
     //       Laita enne funktiokutsua eteen 100ms viive (Task_sleep)
     // JTKJ: Exercise 2. Setup the OPT3001 sensor for use
     //       Before calling the setup function, insertt 100ms delay with Task_sleep
-        Task_sleep(10000 / Clock_tickPeriod);
-        tmp007_setup(&i2c);
+        Task_sleep(1000 / Clock_tickPeriod);
         opt3001_setup(&i2c);
         I2C_close(i2c);
 
@@ -506,7 +378,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
 
     while (1) {
 
-        // JTKJ: Tehtava 2. Lue sensorilta dataa ja tulosta se Debug-ikkunaan merkkijonona
+        // JTKJ: Tehtï¿½vï¿½ 2. Lue sensorilta dataa ja tulosta se Debug-ikkunaan merkkijonona
         // JTKJ: Exercise 2. Read sensor data and print it to the Debug window as string
         /*
         double lux  = opt3001_get_data(&i2c);
@@ -517,27 +389,9 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_flush();
         */
 
-        if(counter == 5){
-
-            i2c = I2C_open(Board_I2C_TMP, &i2cParams);
-
-            lux = opt3001_get_data(&i2c);
-
-
-            char debug_msg_mpu[56];
-            sprintf(debug_msg_mpu, "lux:  ", lux);
-            System_printf(debug_msg_mpu);
-            System_flush();
-
-            I2C_close(i2c);
-        }
-
-
         //------------------------------------MPU9250
         i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
         mpu9250_get_data(&i2cMPU, &ax[i], &ay[i], &az[i], &gx[i], &gy[i], &gz[i]);
-
-
 
         /*testing
         char debug_msg_mpu[56];
@@ -546,28 +400,16 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_flush();
         */
 
-//------------------------Data collection
-        /*
-        char debug_msg_mpu[56];
-        //System_printf("ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", ax[i], ay[i], az[i], gx[i], gy[i], gz[i]);
-        sprintf(debug_msg_mpu, "ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", ax[i], ay[i], az[i], gx[i], gy[i], gz[i]);
-        System_printf(debug_msg_mpu);
-        System_flush();
-        */
-
-        char debug_msg_mpu[56];
-
-
         I2C_close(i2cMPU);
 
 
-        // JTKJ: Tehtava 3. Tallenna mittausarvo globaaliin muuttujaan
+        // JTKJ: Tehtï¿½vï¿½ 3. Tallenna mittausarvo globaaliin muuttujaan
         //       Muista tilamuutos
         // JTKJ: Exercise 3. Save the sensor value into the global variable
         //       Remember to modify state
         //ambientLight = lux;
 
-        if (counter == 9){
+        if (counter == 5){
             programState = DATA_READY;
             i = 0;
             counter = 0;
@@ -602,10 +444,10 @@ Int main(void) {
     Board_initGeneral();
 
     
-    // JTKJ: Tehtava 2. Ota i2c-vayla kayttoon ohjelmassa
+    // JTKJ: Tehtï¿½vï¿½ 2. Ota i2c-vï¿½ylï¿½ kï¿½yttï¿½ï¿½n ohjelmassa
     // JTKJ: Exercise 2. Initialize i2c bus
     Board_initI2C();
-    // JTKJ: Tehtava 4. Ota UART kayttoon ohjelmassa
+    // JTKJ: Tehtï¿½vï¿½ 4. Ota UART kï¿½yttï¿½ï¿½n ohjelmassa
     // JTKJ: Exercise 4. Initialize UART
     Board_initUART();
 
@@ -616,12 +458,12 @@ Int main(void) {
         System_abort("Pin open failed!");
     }
 
-    // JTKJ: Tehtava 1. Ota painonappi ja ledi ohjelman kayttoon
-    //       Muista rekisteroida keskeytyksen kasittelija painonapille
+    // JTKJ: Tehtï¿½vï¿½ 1. Ota painonappi ja ledi ohjelman kï¿½yttï¿½ï¿½n
+    //       Muista rekisterï¿½idï¿½ keskeytyksen kï¿½sittelijï¿½ painonapille
     // JTKJ: Exercise 1. Open the button and led pins
     //       Remember to register the above interrupt handler for button
 
-    // Otetaan pinnit käyttöön ohjelmassa
+    // Otetaan pinnit kÃ¤yttÃ¶Ã¶n ohjelmassa
        buttonHandle = PIN_open(&buttonState, buttonConfig);
        if(!buttonHandle) {
           System_abort("Error initializing button pins\n");
@@ -631,7 +473,7 @@ Int main(void) {
           System_abort("Error initializing LED pins\n");
        }
 
-       // Asetetaan painonappi-pinnille keskeytyksen käsittelijäksi
+       // Asetetaan painonappi-pinnille keskeytyksen kÃ¤sittelijÃ¤ksi
           // funktio buttonFxn
        if (PIN_registerIntCb(buttonHandle, &buttonFxn) != 0) {
            System_abort("Error registering button callback function");
