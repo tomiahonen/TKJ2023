@@ -1,3 +1,10 @@
+/*
+ * COURSEWORK BY TOMI AHONEN AND TUOMAS NUMMINEN
+ */
+
+
+
+
 /* C Standard library */
 #include <stdio.h>
 #include <math.h>
@@ -24,7 +31,7 @@
 #include "sensors/opt3001.h"
 #include "sensors/mpu9250.h"
 #include "sensors/buzzer.h"
-//#include "lib/Pitches/pitches.h"
+
 
 
 /* Task */
@@ -58,6 +65,7 @@ PIN_Config cBuzzer[] = {
 
 
 float movavg(float *array, uint8_t array_size, uint8_t window_size);
+
 
 
 //----------------------------------------
@@ -95,8 +103,6 @@ uint8_t uartBuffer[30]; //vastaanottopuskuri
 // JTKJ: Tehtava 3. Valoisuuden globaali muuttuja
 // JTKJ: Exercise 3. Global variable for ambient light
 double lux = 0001.0;
-
-double temperature = 0;
 
 // JTKJ: Tehtava 1. Lisaa painonappien RTOS-muuttujat ja alustus
 // JTKJ: Exercise 1. Add pins RTOS-variables and configuration here
@@ -149,7 +155,7 @@ void buttonFxn(PIN_Handle handle, PIN_Id pinId) {
     PIN_setOutputValue( ledHandle, Board_LED0, pinValue );
 
     button_pressed = 1;
-    //programState = DATA_READY;
+
 }
 
 //kasittelijafunktio
@@ -163,16 +169,16 @@ static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
            sprintf(msg, "%c%c%c%c%c%c%c%c%c", input[0], input[1], input[2], input[3], input[4], input[5], input[6], input[7], input[8]);
            const char compare[] = "3008,BEEP";
 
-           //BEEP = 1;
-
            if(strcmp(msg, compare) == 0) {
                BEEP = 1;
            }
-           UART_read(handle, rxBuf, 60);
+           //UART_read(handle, rxBuf, 80);
        }
+        UART_read(handle, rxBuf, 80);
         programState = WAITING;
-       // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
-       //UART_read(handle, rxBuf, 1);
+
+        // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
+
 }
 
 
@@ -236,26 +242,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
     // JTKJ: tehtava 4. Lisaa UARTin alustus: 9600,8n1
     // JTKJ: Exercise 4. Setup here UART connection as 9600,8n1
-       //char input;
-
-
-       // UART-kirjaston asetukset
-
-       /*
-       UART_Handle uart;
-       UART_Params uartParams;
-
-       // Alustetaan sarjaliikenne
-       UART_Params_init(&uartParams);
-       uartParams.writeDataMode = UART_DATA_TEXT;
-       uartParams.readDataMode = UART_DATA_TEXT;
-       uartParams.readEcho = UART_ECHO_OFF;
-       uartParams.readMode=UART_MODE_BLOCKING;
-       uartParams.baudRate = 9600; // nopeus 9600baud
-       uartParams.dataLength = UART_LEN_8; // 8
-       uartParams.parityType = UART_PAR_NONE; // n
-       uartParams.stopBits = UART_STOP_ONE; // 1
-    */
+    // UART-kirjaston asetukset
 
        // TI dokumentaatiosta:
        UART_Handle uart;
@@ -278,11 +265,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
           if (uart == NULL) {
              System_abort("Error opening the UART");
           }
-       //UART_read(uart, uartBuffer, 1);
-
-       System_flush();
-
-       //float thresholdax = 1.3;
 
 
     while (1) {
@@ -319,13 +301,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
              }
 
 
-
-
-
-
-            //sprintf(echo_msg3,"id:3008, MSG1: %f", lux);
-            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
             float movavgx = movavg(ax,ARRAYSIZE,3);
             float movavgy = movavg(ay,ARRAYSIZE,3);
             float movavgz = movavg(az,ARRAYSIZE,3);
@@ -358,30 +333,18 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             //--------------------
 
             //-----------------PET
-
-            /*
-            if(movavgx > 0.5f && movavggz > 10.0f || movavgx < -0.5f && movavggz < -10.0f) {
-                sprintf(echo_msg3,"id:3008,PET:2\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-                buzzerFxn(2000, 3000, 4000, 350000);
-            }
-            */
-
             if(movavgx > 0.5f && movavggz > 10.0f) {
                 pet_counter++;
             }
 
-            if(pet_counter > 4) {
+            if(pet_counter > 3) {
                 sprintf(echo_msg3,"id:3008,PET:2\0");
                 UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
                 buzzerFxn(2000, 3000, 4000, 350000);
                 pet_counter = 0;
-
-
             }
-
+            //-------------------------------------
 
 
            //-------EXERCISE
@@ -391,41 +354,24 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
                buzzerFxn(5000, 5000, 5000, 350000);
                button_pressed = 0;
-
            }
+           //------------------------------
 
            if (button_pressed) {
                musicplayer();
                button_pressed = 0;
            }
 
-           //UART_read(uart, &input, 60);
-           UART_read(uart, &input, 60);
+
+           UART_read(uart, &input, 80);
            programState = UART_MESSAGE;
-           if(BEEP == 1 || BEEP == 2) {
+           if(BEEP == 1) {
                    musicplayer();
                    BEEP = 0;
            }
-               //Task_sleep(100000);
-           //programState = WAITING;
-
         }
         // JTKJ: Tehtava 4. Laheta sama merkkijono UARTilla
         // JTKJ: Exercise 4. Send the same sensor data string with UART
-        /*char echo_msg[30];
-        sprintf(echo_msg, "uartTask: %f luksia\n\r", ambientLight);
-        UART_write(uart, echo_msg, strlen(echo_msg));
-        char echo_msg2[30];
-        sprintf(echo_msg2, "id:3008,PET:1/0");
-        UART_write(uart, echo_msg2, strlen(echo_msg2));
-        */
-
-
-
-
-
-
-
         // Once per second, you can modify this
         Task_sleep(100000 / Clock_tickPeriod);
     }
@@ -449,7 +395,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
        PIN_setOutputValue(hMpuPin,Board_MPU_POWER, Board_MPU_POWER_ON);
 
        // Wait 100ms for the MPU sensor to power up
-           Task_sleep(100000 / Clock_tickPeriod);
+       Task_sleep(100000 / Clock_tickPeriod);
        System_printf("MPU9250: Power ON\n");
        System_flush();
 
@@ -493,7 +439,6 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
     // JTKJ: Exercise 2. Setup the OPT3001 sensor for use
     //       Before calling the setup function, insertt 100ms delay with Task_sleep
         Task_sleep(10000 / Clock_tickPeriod);
-        //tmp007_setup(&i2c);
         opt3001_setup(&i2c);
         I2C_close(i2c);
 
@@ -503,32 +448,17 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
 
         // JTKJ: Tehtava 2. Lue sensorilta dataa ja tulosta se Debug-ikkunaan merkkijonona
         // JTKJ: Exercise 2. Read sensor data and print it to the Debug window as string
-        /*
-        double lux  = opt3001_get_data(&i2c);
-        char debug_msg[56];
-        sprintf(debug_msg,"Luksia %f\n", lux);
 
-        System_printf(debug_msg);
-        System_flush();
-        */
             while(1){
 
                 if(counter == 5){
 
                     i2c = I2C_open(Board_I2C_TMP, &i2cParams);
-                    //Task_sleep(10000);
 
                     double luxdata = opt3001_get_data(&i2c);
                     if(luxdata) {
                         lux = luxdata;
                     }
-
-                    /*
-                    char debug_msg_mpu[56];
-                    sprintf(debug_msg_mpu, "Newlux: %f .\n", lux);
-                    System_printf(debug_msg_mpu);
-                    System_flush();
-                    */
 
                     I2C_close(i2c);
                 }
@@ -539,27 +469,6 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
                 i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
                 mpu9250_get_data(&i2cMPU, &ax[i], &ay[i], &az[i], &gx[i], &gy[i], &gz[i]);
 
-
-
-        /*testing
-        char debug_msg_mpu[56];
-        sprintf(debug_msg_mpu, "sensorTask: %f suunta\n", ax[i]);
-        System_printf(debug_msg_mpu);
-        System_flush();
-        */
-
-//------------------------Data collection
-        /*
-        char debug_msg_mpu[56];
-        //System_printf("ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", ax[i], ay[i], az[i], gx[i], gy[i], gz[i]);
-        sprintf(debug_msg_mpu, "ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", ax[i], ay[i], az[i], gx[i], gy[i], gz[i]);
-        System_printf(debug_msg_mpu);
-        System_flush();
-        */
-
-
-
-
                 I2C_close(i2cMPU);
 
 
@@ -567,7 +476,6 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         //       Muista tilamuutos
         // JTKJ: Exercise 3. Save the sensor value into the global variable
         //       Remember to modify state
-        //ambientLight = lux;
 
                 if (counter == 9){
                     programState = DATA_READY;
@@ -578,17 +486,10 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
 
                 i++;
                 counter++;
-        //programState = DATA_READY;
-        // Just for sanity check for exercise, you can comment this out
-        //System_printf("sensorTask\n");
-        //System_flush();
 
         // Once per second, you can modify this
                 Task_sleep(1000 / Clock_tickPeriod);
             }
-
-
-
 }
 
 
