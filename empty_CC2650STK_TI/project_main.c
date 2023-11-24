@@ -1,6 +1,7 @@
 /* C Standard library */
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
 /* XDCtools files */
 #include <xdc/std.h>
@@ -50,7 +51,6 @@ static const I2CCC26XX_I2CPinCfg i2cMPUCfg = {
 
 //Buzzer PIN config
 static PIN_Handle hBuzzer;
-static PIN_State sBuzzer;
 PIN_Config cBuzzer[] = {
   Board_BUZZER | PIN_GPIO_OUTPUT_EN | PIN_GPIO_LOW | PIN_PUSHPULL | PIN_DRVSTR_MAX,
   PIN_TERMINATE
@@ -67,7 +67,7 @@ float movavg(float *array, uint8_t array_size, uint8_t window_size);
 
 // JTKJ: Tehtava 3. Tilakoneen esittely
 // JTKJ: Exercise 3. Definition of the state machine
-enum state { WAITING=1, DATA_READY, MUSICPLAYER, UART_MESSAGE };
+enum state { WAITING=1, DATA_READY, UART_MESSAGE };
 enum state programState = WAITING;
 
 //Global variables
@@ -87,8 +87,8 @@ int counter = 0;
 int button_pressed = 0;
 int pet_counter = 0;
 int eat_counter = 0;
-char input[60] = {};
-int BEEP;
+char input[80] = {};
+int BEEP = 0;
 uint8_t uartBuffer[30]; //vastaanottopuskuri
 
 
@@ -149,7 +149,7 @@ void buttonFxn(PIN_Handle handle, PIN_Id pinId) {
     PIN_setOutputValue( ledHandle, Board_LED0, pinValue );
 
     button_pressed = 1;
-    programState = DATA_READY;
+    //programState = DATA_READY;
 }
 
 //kasittelijafunktio
@@ -158,28 +158,19 @@ static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
        // rxBuf-taulukossa, pituus len, jota voimme kasitella halutusti
        // Tassa ne annetaan argumentiksi toiselle funktiolle (esimerkin vuoksi)
        //(rxBuf,len);
-    char msg[60];
-    char alarm[60];
+    char msg[80];
     if(programState == UART_MESSAGE) {
-           sprintf(msg, "%c%c%c%c", input[0], input[1], input[2], input[3]);
-           sprintf(alarm, "%c%c%c", input[4], input[5], input[6]);
-           char compare[] = "3008";
-           char versus[] = "Too";
-           System_printf(msg);
-           System_flush();
-           System_printf(alarm);
-           System_flush();
+           sprintf(msg, "%c%c%c%c%c%c%c%c%c", input[0], input[1], input[2], input[3], input[4], input[5], input[6], input[7], input[8]);
+           const char compare[] = "3008,BEEP";
+
+           //BEEP = 1;
 
            if(strcmp(msg, compare) == 0) {
                BEEP = 1;
            }
-           if(strcmp(alarm, versus) == 0) {
-               BEEP = 2;
-           }
-           programState = WAITING;
            UART_read(handle, rxBuf, 60);
        }
-
+        programState = WAITING;
        // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
        //UART_read(handle, rxBuf, 1);
 }
@@ -245,8 +236,8 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
     // JTKJ: tehtava 4. Lisaa UARTin alustus: 9600,8n1
     // JTKJ: Exercise 4. Setup here UART connection as 9600,8n1
-       char input;
-       char echo_msg[30];
+       //char input;
+
 
        // UART-kirjaston asetukset
 
@@ -276,7 +267,11 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        params.readCallback  = &uartFxn; // Kasittelijafunktio
        params.readDataMode  = UART_DATA_TEXT;
        params.writeDataMode = UART_DATA_TEXT;
-       params.readEcho = UART_ECHO_ON;
+       params.readEcho = UART_ECHO_OFF;
+
+       params.dataLength = UART_LEN_8;
+       params.parityType = UART_PAR_NONE;
+       params.stopBits = UART_STOP_ONE;
 
        // uart kayttoon ohjelmassa
        uart = UART_open(Board_UART0, &params);
@@ -323,13 +318,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
                 luxFlag[0]=0;
              }
 
-            UART_read(uart, &input, 60);
-            programState = UART_MESSAGE;
-            if(BEEP == 1) {
 
-                musicplayer();
-                BEEP = 0;
-            }
 
 
 
@@ -369,6 +358,16 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             //--------------------
 
             //-----------------PET
+
+            /*
+            if(movavgx > 0.5f && movavggz > 10.0f || movavgx < -0.5f && movavggz < -10.0f) {
+                sprintf(echo_msg3,"id:3008,PET:2\0");
+                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+                buzzerFxn(2000, 3000, 4000, 350000);
+            }
+            */
+
             if(movavgx > 0.5f && movavggz > 10.0f) {
                 pet_counter++;
             }
@@ -385,13 +384,8 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
 
 
-
-
-
-
-
            //-------EXERCISE
-           if(movavgz > 2.0f) {
+           if(movavgz > 1.5f) {
                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
@@ -401,18 +395,19 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
            }
 
            if (button_pressed) {
-
-               button_pressed = 0;
-               programState = MUSICPLAYER;
-           }
-
-           if(programState == MUSICPLAYER){
                musicplayer();
+               button_pressed = 0;
            }
 
-
-
-           programState = WAITING;
+           //UART_read(uart, &input, 60);
+           UART_read(uart, &input, 60);
+           programState = UART_MESSAGE;
+           if(BEEP == 1 || BEEP == 2) {
+                   musicplayer();
+                   BEEP = 0;
+           }
+               //Task_sleep(100000);
+           //programState = WAITING;
 
         }
         // JTKJ: Tehtava 4. Laheta sama merkkijono UARTilla
@@ -424,6 +419,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         sprintf(echo_msg2, "id:3008,PET:1/0");
         UART_write(uart, echo_msg2, strlen(echo_msg2));
         */
+
 
 
 
@@ -497,7 +493,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
     // JTKJ: Exercise 2. Setup the OPT3001 sensor for use
     //       Before calling the setup function, insertt 100ms delay with Task_sleep
         Task_sleep(10000 / Clock_tickPeriod);
-        tmp007_setup(&i2c);
+        //tmp007_setup(&i2c);
         opt3001_setup(&i2c);
         I2C_close(i2c);
 
@@ -515,7 +511,6 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_printf(debug_msg);
         System_flush();
         */
-
             while(1){
 
                 if(counter == 5){
@@ -528,11 +523,12 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
                         lux = luxdata;
                     }
 
-
+                    /*
                     char debug_msg_mpu[56];
                     sprintf(debug_msg_mpu, "Newlux: %f .\n", lux);
                     System_printf(debug_msg_mpu);
                     System_flush();
+                    */
 
                     I2C_close(i2c);
                 }
@@ -561,7 +557,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_flush();
         */
 
-                char debug_msg_mpu[56];
+
 
 
                 I2C_close(i2cMPU);
@@ -590,6 +586,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         // Once per second, you can modify this
                 Task_sleep(1000 / Clock_tickPeriod);
             }
+
 
 
 }
