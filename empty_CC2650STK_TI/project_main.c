@@ -56,20 +56,10 @@ PIN_Config cBuzzer[] = {
   PIN_TERMINATE
 };
 
-//kasittelijafunktio
-static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
-    // Nyt meilla on siis haluttu maara merkkeja kaytettavissa
-       // rxBuf-taulukossa, pituus len, jota voimme kasitella halutusti
-       // Tassa ne annetaan argumentiksi toiselle funktiolle (esimerkin vuoksi)
-       //(rxBuf,len);
-
-       // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
-       UART_read(handle, rxBuf, 1);
-}
 
 float movavg(float *array, uint8_t array_size, uint8_t window_size);
-float absavg(float *array, uint8_t array_size);
-int threshold(float *array, uint8_t array_size, float thresholdValue);
+
+
 //----------------------------------------
 
 
@@ -77,7 +67,7 @@ int threshold(float *array, uint8_t array_size, float thresholdValue);
 
 // JTKJ: Tehtava 3. Tilakoneen esittely
 // JTKJ: Exercise 3. Definition of the state machine
-enum state { WAITING=1, DATA_READY };
+enum state { WAITING=1, DATA_READY, MUSICPLAYER, UART_MESSAGE };
 enum state programState = WAITING;
 
 //Global variables
@@ -90,15 +80,21 @@ float gx[ARRAYSIZE] = {};
 float gy[ARRAYSIZE] = {};
 float gz[ARRAYSIZE] = {};
 
+int luxFlag[] ={0,1};
+
 int i = 0;
 int counter = 0;
 int button_pressed = 0;
+int pet_counter = 0;
+int eat_counter = 0;
+char input[60] = {};
+int BEEP;
 uint8_t uartBuffer[30]; //vastaanottopuskuri
 
 
 // JTKJ: Tehtava 3. Valoisuuden globaali muuttuja
 // JTKJ: Exercise 3. Global variable for ambient light
-double lux = -1000.0;
+double lux = 0001.0;
 
 double temperature = 0;
 
@@ -142,45 +138,107 @@ float movavg(float *array, uint8_t array_size, uint8_t window_size){
     return keskiarvo;
 }
 
-float absavg(float *array, uint8_t array_size){
-
-    float average = 0.0;
-    int i;
-
-    for(i = 0; i<array_size; i++) {
-        average = average + fabs(array[i]);
-
-
-    }
-    average =  average/array_size;
-    return average;
-
-}
-int threshold(float *array, uint8_t array_size, float thresholdValue){
-
-    int thresholdCrossed = 0;
-    int i;
-
-    for(i = 0; i<array_size; i++) {
-        if(fabs(array[i])>thresholdValue){
-            thresholdCrossed = 1;
-        }
-    }
-
-    return thresholdCrossed;
-
-}
 void buttonFxn(PIN_Handle handle, PIN_Id pinId) {
 
     // JTKJ: Tehtava 1. Vilkuta jompaa kumpaa ledia
     // JTKJ: Exercise 1. Blink either led of the device
     // Vaihdetaan led-pinnin tilaa negaatiolla
     uint_t pinValue = PIN_getOutputValue( Board_LED0 );
+
     pinValue = !pinValue;
     PIN_setOutputValue( ledHandle, Board_LED0, pinValue );
+
     button_pressed = 1;
     programState = DATA_READY;
 }
+
+//kasittelijafunktio
+static void uartFxn(UART_Handle handle, void *rxBuf, size_t len) {
+    // Nyt meilla on siis haluttu maara merkkeja kaytettavissa
+       // rxBuf-taulukossa, pituus len, jota voimme kasitella halutusti
+       // Tassa ne annetaan argumentiksi toiselle funktiolle (esimerkin vuoksi)
+       //(rxBuf,len);
+    char msg[60];
+    char alarm[60];
+    if(programState == UART_MESSAGE) {
+           sprintf(msg, "%c%c%c%c", input[0], input[1], input[2], input[3]);
+           sprintf(alarm, "%c%c%c", input[4], input[5], input[6]);
+           char compare[] = "3008";
+           char versus[] = "Too";
+           System_printf(msg);
+           System_flush();
+           System_printf(alarm);
+           System_flush();
+
+           if(strcmp(msg, compare) == 0) {
+               BEEP = 1;
+           }
+           if(strcmp(alarm, versus) == 0) {
+               BEEP = 2;
+           }
+           programState = WAITING;
+           UART_read(handle, rxBuf, 60);
+       }
+
+       // Kasittelijan viimeisena asiana siirrytaan odottamaan uutta keskeytysta..
+       //UART_read(handle, rxBuf, 1);
+}
+
+
+void buzzerFxn(int freq1, int freq2, int freq3, int sleep) {
+    buzzerOpen(hBuzzer);
+
+    buzzerSetFrequency(freq1);
+    Task_sleep(sleep / Clock_tickPeriod);
+    buzzerSetFrequency(freq2);
+    Task_sleep(sleep / Clock_tickPeriod);
+    buzzerSetFrequency(freq3);
+    Task_sleep(sleep / Clock_tickPeriod);
+    buzzerClose();
+}
+
+void musicplayer() {
+    buzzerOpen(hBuzzer);
+
+    buzzerSetFrequency(659); // E5
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(587); // D5
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(370); // FS4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(415); // GS4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(554); // CS5
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(494); // B4
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(294); // D4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(330); // E4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(494); // B4
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(440); // A4
+    Task_sleep(350000 / Clock_tickPeriod);
+    buzzerSetFrequency(277); // CS4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(330); // E4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(440); // A4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(440); // A4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(440); // A4
+    Task_sleep(175000 / Clock_tickPeriod);
+    buzzerSetFrequency(440); // A4
+    Task_sleep(100000 / Clock_tickPeriod);
+
+
+    buzzerClose();
+
+}
+
+
 
 /* Task Functions */
 Void uartTaskFxn(UArg arg0, UArg arg1) {
@@ -218,6 +276,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        params.readCallback  = &uartFxn; // Kasittelijafunktio
        params.readDataMode  = UART_DATA_TEXT;
        params.writeDataMode = UART_DATA_TEXT;
+       params.readEcho = UART_ECHO_ON;
 
        // uart kayttoon ohjelmassa
        uart = UART_open(Board_UART0, &params);
@@ -231,7 +290,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
        //float thresholdax = 1.3;
 
 
-    int eat_counter = 0;
     while (1) {
 
         // JTKJ: Tehtava 3. Kun tila on oikea, tulosta sensoridata merkkijonossa debug-ikkunaan
@@ -240,14 +298,44 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
         //       Remember to modify state
         if (programState == DATA_READY) {
             char debug_msg[100];
-            //sprintf(debug_msg,"Luksia %f", ambientLight);
-            //System_printf(debug_msg);
-            //System_flush();
-
             char echo_msg3[30];
 
-            sprintf(echo_msg3,"id:3008, MSG1: %f", lux);
-            UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+            if (lux < 150.0f && !luxFlag[0]){
+                sprintf(echo_msg3,"id:3008, MSG1: I am scared it is dark in here");
+                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+                char debug_msg_mpu[56];
+                sprintf(debug_msg_mpu, "Ensimmainen tila. Lux on: %f  ja flag on %d \n", lux, luxFlag[0]);
+                System_printf(debug_msg_mpu);
+                System_flush();
+
+                luxFlag[0]=1;
+
+            }
+            else if(lux > 200.0f && luxFlag[0]){
+                sprintf(echo_msg3,"id:3008, MSG1: I'm naked!");
+                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
+
+                char debug_msg_mpu[56];
+                sprintf(debug_msg_mpu, "Toinen tila. Lux on: %f  ja flag on %d \n", lux, luxFlag[0]);
+                System_printf(debug_msg_mpu);
+
+                luxFlag[0]=0;
+             }
+
+            UART_read(uart, &input, 60);
+            programState = UART_MESSAGE;
+            if(BEEP == 1) {
+
+                musicplayer();
+                BEEP = 0;
+            }
+
+
+
+
+            //sprintf(echo_msg3,"id:3008, MSG1: %f", lux);
+            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
             float movavgx = movavg(ax,ARRAYSIZE,3);
             float movavgy = movavg(ay,ARRAYSIZE,3);
@@ -257,160 +345,74 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
             float movavggy = movavg(gy,ARRAYSIZE,3);
             float movavggz = movavg(gz,ARRAYSIZE,3);
 
-            sprintf(debug_msg, "ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", movavgx, movavgy, movavgz, movavggx, movavggy, movavggz);
+            //---------Collecting data
+            //sprintf(debug_msg, "ax = %.3f, ay = %.3f, az = %.3f, gx = %f, gy = %f, gz = %f \n", movavgx, movavgy, movavgz, movavggx, movavggy, movavggz);
+            sprintf(debug_msg, "%.3f %.3f %.3f %f %f %f \n", movavgx, movavgy, movavgz, movavggx, movavggy, movavggz);
             System_printf(debug_msg);
             System_flush();
+            //-------------------------
 
-            // ax = -0.298, ay = 1.087, az = -0.968
 
-            if (movavgy > 1.0f && movavgx < 0.25f && movavgz < 0.9) {
+            //----------------EAT
+            if (movavggz > 80.0f && movavggx > 2.5f) {
                 eat_counter++;
             }
 
             if(eat_counter > 4){
-                sprintf(echo_msg3,"id:3008,EAT:1\0");
+                sprintf(echo_msg3,"id:3008,EAT:2\0");
                 UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
                 eat_counter=0;
-            }
 
-            if (button_pressed) {
-                sprintf(echo_msg3,"id:3008,PET:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-                button_pressed = 0;
-            }
-
-
-
-            // sprintf(echo_msg3, "id:3008,PET:1\0");
-            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-            //sprintf(echo_msg3,"id:3008,ACTIVATE:1;1;1\0");
-            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-            //sprintf(echo_msg3,"id:3008,ping");
-            //UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-            /*
-            char debug_msg_mpu[56];
-            sprintf(debug_msg_mpu, "Tulosta! %f", *ax);
-            System_printf(debug_msg_mpu);
-            System_flush();
-            */
-
-            //if (*ax > 0.2 || *ax < -0.2) {
-
-            /*
-            float movavgx = movavg(ax, 10, 4);
-            if(movavgx > 0.3F || movavgx < -0.3F){
-                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-                char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "Tulosta! movavg %f \n", movavgx);
-                System_printf(debug_msg_mpu);
-                System_flush();
-            }
-
-            */
-
-            /*
-            float absavgx = absavg(ax, 10);
-            if(absavgx > 0.3F){
-                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-                char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "Tulosta! absavg %f \n", absavgx);
-                System_printf(debug_msg_mpu);
-                System_flush();
+                buzzerFxn(4000, 3000, 2000, 350000);
 
             }
-            */
+            //--------------------
 
-
-           /*
-
-           // If threshold returns 1 at value 1.5 ----> EXERCISE
-           if(threshold(az, ARRAYSIZE, 1.5f)) {
-
-                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
-                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
-
-                char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "-Acc tulostus- \n");
-                System_printf(debug_msg_mpu);
-                System_flush();
-
-                buzzerOpen(hBuzzer);
-                buzzerSetFrequency(5000);
-                Task_sleep(50000 / Clock_tickPeriod);
-                buzzerClose();
-
-                Task_sleep(950000 / Clock_tickPeriod);
+            //-----------------PET
+            if(movavgx > 0.5f && movavggz > 10.0f) {
+                pet_counter++;
             }
-            */
 
-            /* (threshold(gz, ARRAYSIZE, 200.0f)){
-                sprintf(echo_msg3,"id:3008,PET:1\0");
+            if(pet_counter > 4) {
+                sprintf(echo_msg3,"id:3008,PET:2\0");
                 UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
-                char debug_msg_mpu[56];
-                sprintf(debug_msg_mpu, "-Gyro tulostus- \n");
-                System_printf(debug_msg_mpu);
-                System_flush();
+                buzzerFxn(2000, 3000, 4000, 350000);
+                pet_counter = 0;
 
-                buzzerOpen(hBuzzer);
-                buzzerSetFrequency(5000);
-                Task_sleep(50000 / Clock_tickPeriod);
-                buzzerClose();
 
-    }
-    */
-           //if moving average > 30 ----> PET
+            }
 
-           /*
-           if(movavggz > 50.0f && movavggx < 120.0f && movavggy < 120.0f) {
 
-               sprintf(echo_msg3,"id:3008,PET:1\0");
-               UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
-               buzzerOpen(hBuzzer);
-               buzzerSetFrequency(5000);
-               Task_sleep(50000 / Clock_tickPeriod);
-               buzzerClose();
-               pet_counter = 0;
 
-               } */
 
-            //ax = -0.261, ay = 0.047, az = 2.090,
-           if(movavgz > 2.0f && movavgx < 0.5f && movavgy < 0.8f) {
+
+
+
+           //-------EXERCISE
+           if(movavgz > 2.0f) {
                sprintf(echo_msg3,"id:3008,EXERCISE:1\0");
                UART_write(uart, echo_msg3, strlen(echo_msg3)+1);
 
-               buzzerOpen(hBuzzer);
-               buzzerSetFrequency(5000);
-               Task_sleep(50000 / Clock_tickPeriod);
-               buzzerClose();
+               buzzerFxn(5000, 5000, 5000, 350000);
+               button_pressed = 0;
+
+           }
+
+           if (button_pressed) {
+
+               button_pressed = 0;
+               programState = MUSICPLAYER;
+           }
+
+           if(programState == MUSICPLAYER){
+               musicplayer();
            }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            programState = WAITING;
+           programState = WAITING;
 
         }
         // JTKJ: Tehtava 4. Laheta sama merkkijono UARTilla
@@ -427,9 +429,6 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 
 
 
-        // Just for sanity check for exercise, you can comment this out
-        //(System_printf("uartTask\n");
-        //System_flush();
 
         // Once per second, you can modify this
         Task_sleep(100000 / Clock_tickPeriod);
@@ -437,7 +436,7 @@ Void uartTaskFxn(UArg arg0, UArg arg1) {
 }
 
 Void sensorTaskFxn(UArg arg0, UArg arg1) {
-    // float ax, ay, az, gx, gy, gz;
+
 
     I2C_Handle      i2c;
     I2C_Params      i2cParams;
@@ -504,7 +503,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
 
 
 
-    while (1) {
+
 
         // JTKJ: Tehtava 2. Lue sensorilta dataa ja tulosta se Debug-ikkunaan merkkijonona
         // JTKJ: Exercise 2. Read sensor data and print it to the Debug window as string
@@ -517,25 +516,32 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_flush();
         */
 
-        if(counter == 5){
+            while(1){
 
-            i2c = I2C_open(Board_I2C_TMP, &i2cParams);
+                if(counter == 5){
 
-            lux = opt3001_get_data(&i2c);
+                    i2c = I2C_open(Board_I2C_TMP, &i2cParams);
+                    //Task_sleep(10000);
+
+                    double luxdata = opt3001_get_data(&i2c);
+                    if(luxdata) {
+                        lux = luxdata;
+                    }
 
 
-            char debug_msg_mpu[56];
-            sprintf(debug_msg_mpu, "lux:  ", lux);
-            System_printf(debug_msg_mpu);
-            System_flush();
+                    char debug_msg_mpu[56];
+                    sprintf(debug_msg_mpu, "Newlux: %f .\n", lux);
+                    System_printf(debug_msg_mpu);
+                    System_flush();
 
-            I2C_close(i2c);
-        }
+                    I2C_close(i2c);
+                }
+
 
 
         //------------------------------------MPU9250
-        i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
-        mpu9250_get_data(&i2cMPU, &ax[i], &ay[i], &az[i], &gx[i], &gy[i], &gz[i]);
+                i2cMPU = I2C_open(Board_I2C, &i2cMPUParams);
+                mpu9250_get_data(&i2cMPU, &ax[i], &ay[i], &az[i], &gx[i], &gy[i], &gz[i]);
 
 
 
@@ -555,10 +561,10 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         System_flush();
         */
 
-        char debug_msg_mpu[56];
+                char debug_msg_mpu[56];
 
 
-        I2C_close(i2cMPU);
+                I2C_close(i2cMPU);
 
 
         // JTKJ: Tehtava 3. Tallenna mittausarvo globaaliin muuttujaan
@@ -567,25 +573,26 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
         //       Remember to modify state
         //ambientLight = lux;
 
-        if (counter == 9){
-            programState = DATA_READY;
-            i = 0;
-            counter = 0;
-            Task_sleep(50000 / Clock_tickPeriod);
-        }
+                if (counter == 9){
+                    programState = DATA_READY;
+                    i = 0;
+                    counter = 0;
+                    Task_sleep(50000 / Clock_tickPeriod);
+                }
 
-        i++;
-        counter++;
+                i++;
+                counter++;
         //programState = DATA_READY;
         // Just for sanity check for exercise, you can comment this out
         //System_printf("sensorTask\n");
         //System_flush();
 
         // Once per second, you can modify this
-        Task_sleep(1000 / Clock_tickPeriod);
-    }
-}
+                Task_sleep(1000 / Clock_tickPeriod);
+            }
 
+
+}
 
 
 

@@ -2,4 +2,4 @@
 // Copyright (c) 2021-2023 HiBit <https://www.hibit.dev>
 // -----------------------------------------------------
 
-#include "pitches.h"
+#include <lib/Pitches/pitches.c>
