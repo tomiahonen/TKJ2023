@@ -456,7 +456,7 @@ Void sensorTaskFxn(UArg arg0, UArg arg1) {
                     i2c = I2C_open(Board_I2C_TMP, &i2cParams);
 
                     double luxdata = opt3001_get_data(&i2c);
-                    if(luxdata) {
+                    if(!(luxdata == -1.0)) {
                         lux = luxdata;
                     }
 
