@@ -1,5 +1,9 @@
 <<<<<<< HEAD
 # TKJ2023
+
+Tomi Ahonen and Tuomas Numminen coursework for computer systems course.
+This repository includes working code for a "Tamagotchi"-like system. Needs to be used
+with the TexasInstruments SensorTag.
 =======
 ## Example Summary
 
